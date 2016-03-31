@@ -19,7 +19,7 @@ apt-get install awscli
 #get back to standard user
 exit
 
-######################### Configure aws cli  ######################
+######################### Configure aws cli et set les varaibles dans ~/.aws/credentials ######################
 aws configure
 AWS Access Key ID [None]: XXXXXXXXXXXXXXXXXx
 AWS Secret Access Key [None]: XXXXXXXXXXXXXXXXXXXXXx
@@ -29,7 +29,7 @@ Default output format [None]:
 ######################### Initiate aws project   ######################
 export AWS_PROJECT=testv10
 
-##### Create the security group to 
+##### Create the security group pour ouvrir certain port du docker host. Au moins SSH 22 + Docker command 2376
 aws ec2 create-security-group --group-name docksg$AWS_PROJECT --description dock-security-group-$AWS_PROJECT
 aws ec2 authorize-security-group-ingress --group-name docksg$AWS_PROJECT --protocol tcp --port 22 --cidr 0.0.0.0/0
 aws ec2 authorize-security-group-ingress --group-name docksg$AWS_PROJECT --protocol tcp --port 2376 --cidr 0.0.0.0/0
@@ -49,17 +49,20 @@ export AWS_ID=`aws ec2 describe-instances --filters "Name=tag-value,Values=docki
 echo $AWS_ID
 
 #### definit le variables d'env pour definir ce docker host par default
+#### a partir de ce moment les commandes docker et docker-compose vont s'executer sur le docker host créer chez aws
 eval $(docker-machine env dockinstance$AWS_PROJECT)
 ################ docker machine ip
 docker-machine ip dockinstance$AWS_PROJECT
-################ docker machine shh
+################ docker machine ssh on peux aussi stop/start notre docker host
 docker-machine ssh dockinstance$AWS_PROJECT
+# On a normalement pas de raison de se connecter directement en ssh au docker host, tous passe par des commandes docker à distance
 
-########################Build l'image docker
+########################Build l'image docker (le dockerfile local) sur le docker host distant
 docker build -t hello .
+########################On démarre nos images (docker-compose.yml) sur le docker host distant
 docker-compose up
 
-##Allow extra port
+##Allow extra port (ici le port 80 doit être ouvert pour acceder au service)
 aws ec2 authorize-security-group-ingress --group-name docksg$AWS_PROJECT --protocol tcp --port 80 --cidr 0.0.0.0/0
 
 ##Test
